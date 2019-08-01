@@ -156,10 +156,15 @@ void Event10sec()
       EventDay();
     }
     if (gprs_command.startsWith("On"))
+    {
       security = true;
-      
-    if (gprs_command.startsWith("off"))
+      SendMessage("OXP on");
+    } 
+    if (gprs_command.startsWith("Off"))
+    {
       security = false;
+      SendMessage("OXP off");
+    }
   }
 }
 
@@ -195,7 +200,7 @@ void ReadSensorKeep()
 
     s1=digitalRead(sen_1);
     s2=digitalRead(sen_2);
-    SendMessage(String(s1));
+    //SendMessage(String(s1));
     if (((s1=1) && (security)) ||  ((s2=1)&&(security)))
        AlertSecurity(s1, s2);
     else      
