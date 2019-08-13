@@ -28,6 +28,7 @@ boolean security=true;
 int minute2 = 0;
 boolean min_alert=false;
 int minute3=0;
+bool p_s1=false; 
 
 //
 String gprs_phonenumber, gprs_command, gprs_param1, gprs_param2 = "";
@@ -38,7 +39,7 @@ void setup()  //обязательная процедура setup, запуск�
   // Включаем отладку
   debugflag = true;
   gprsMessflag = true;
-  
+  p_s1=false;
   pinMode(9, OUTPUT);
   digitalWrite(9, HIGH);    // Подаем High на пин 9
   delay(3000);              // на 3 секунды
@@ -135,7 +136,8 @@ void could(int t1_sensor_value, int t2_sensor_value, int min_value)
 // Timer one day
 void EventDay ()
 {
-  SendMessage("temp on this day dat1: " +String(temp_dht)+ " dat2: " + String(temp_lm));  
+  SendMessage("temp on this day dat1: " +String(temp_dht)+ " dat2: " + String(temp_lm)+"OXP "+String(security));
+  DebugText("OXP"+String(security));
 }
 
 // Timer 10 second
@@ -150,9 +152,19 @@ void Event10sec()
     DebugText(gprs_command);
     DebugText(gprs_param1);
     DebugText(gprs_param2);
+    if (gprs_param1.startsWith("New min_t"))
+    {
+        EEPROM.write(31, min_t);
+        SendMessage("New min_t"+ String(min_t));
+    }
+    if (gprs_phonenumber.startsWith("Phone"))
+    {
+      EEPROM.write(32, phone);
+      SendMessage("New phone number"+ String(phone));
+    }
     if (gprs_command.startsWith("Temp"))
     {
-      DebugText("start eventday");
+      //DebugText("start eventday");
       EventDay();
     }
     if (gprs_command.startsWith("On"))
@@ -200,15 +212,31 @@ void ReadSensorKeep()
 
     s1=digitalRead(sen_1);
     s2=digitalRead(sen_2);
+    DebugText("digitalRead 1 " +String(s1));;
     //SendMessage(String(s1));
-    if (((s1=1) && (security)) ||  ((s2=1)&&(security)))
+    if ((s1==1) && (security))
+      {
        AlertSecurity(s1, s2);
+       p_s1=true;
+       //DebugText(String(s1));
+       //if (p_s1)
+        // DebugText("p_s1=true");
+         
+      // else
+        //DebugText("p_s1=false");
+      }
     else      
-      if (security)
-      {  
-        s1=0;
+    {
+      //if (p_s1)
+        //DebugText("p_s1=true1");
+      //else
+        //DebugText("p_s1=fals1");
+      if (((p_s1)&&(s1==0))&&(security))
+      {   
+        p_s1=false;
         SendMessage("Everything in normal. Sen_1= " +String(s1));
       }
+    }
 }
 
 void AlertSecurity( int s1,int s2)
@@ -216,14 +244,14 @@ void AlertSecurity( int s1,int s2)
   {  
     if(minute3 >=3)
     {  
-      SendMessage("Danger, thieves! sen1=" + String(sen_1));
+      SendMessage("Danger, thieves! sen1=" + String(s1));
       minute3=0;
     }
   }
   else
     {  
     minute3=0;
-    SendMessage("Danger, thieves! sen1=" + String(sen_1));
+    SendMessage("Danger, thieves! sen1=" + String(s1));
     }
 }
 
