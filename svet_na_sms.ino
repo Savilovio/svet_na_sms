@@ -13,6 +13,8 @@ int sen_2 = 12;
 int led = 8;  //объявление переменной целого типа, содержащей номер порта к которому мы подключили второй провод
 char phone[13]; // переменная для хранения массива из 20 символов для номера телефона
 int addr = 0;
+int secpam = 32;
+int minpam = 31;
 bool ledflag = false;
 String tel = "";
 long t1a, t1b , t1c;
@@ -66,8 +68,8 @@ void setup()  //обязательная процедура setup, запуск�
   }
   
   DebugText(tel);
-  
-  min_t = EEPROM.read(31);
+  security = EEPROM.read(secpam);
+  min_t = EEPROM.read(minpam);
   //if((min_t>10)|| (min_t<2 ))
   //{
   //  EEPROM.write(31, 8);//min t
@@ -79,13 +81,8 @@ void setup()  //обязательная процедура setup, запуск�
   
   t1c=0;
   t1b = 0;
-  security = EEPROM.read(32);
-  
- 
-  
   delay(500);
-  SendMessage("Start");
-  SendMessage("OXP"+String(security));
+  SendMessage("Start. OXP="+String(security)+".Min_t="+String(min_t));
   //gprs_sendmessage("+79056897223", "Start");
   
 }
@@ -156,7 +153,7 @@ void Event10sec()
     DebugText(gprs_param2);
     if (gprs_param1.startsWith("New min_t"))
     {
-        EEPROM.write(31, min_t);
+        EEPROM.write(minpam, min_t);
         SendMessage("New min_t"+ String(min_t));
     }
     if (gprs_phonenumber.startsWith("Phone"))
@@ -173,13 +170,13 @@ void Event10sec()
     {
       security = true;
       SendMessage("OXP on");
-      EEPROM.write(32,security);
+      EEPROM.write(secpam,security);
     } 
     if (gprs_command.startsWith("Off"))
     {
       security = false;
       SendMessage("OXP off");
-      EEPROM.write(32,security);
+      EEPROM.write(secpam,security);
     }
   }
 }
