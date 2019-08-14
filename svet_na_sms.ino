@@ -79,11 +79,13 @@ void setup()  //обязательная процедура setup, запуск�
   
   t1c=0;
   t1b = 0;
-  security = false;
+  security = EEPROM.read(32);
+  
  
   
   delay(500);
   SendMessage("Start");
+  SendMessage("OXP"+String(security));
   //gprs_sendmessage("+79056897223", "Start");
   
 }
@@ -159,7 +161,7 @@ void Event10sec()
     }
     if (gprs_phonenumber.startsWith("Phone"))
     {
-      EEPROM.write(32, phone);
+      EEPROM.write(addr, phone);
       SendMessage("New phone number"+ String(phone));
     }
     if (gprs_command.startsWith("Temp"))
@@ -171,11 +173,13 @@ void Event10sec()
     {
       security = true;
       SendMessage("OXP on");
+      EEPROM.write(32,security);
     } 
     if (gprs_command.startsWith("Off"))
     {
       security = false;
       SendMessage("OXP off");
+      EEPROM.write(32,security);
     }
   }
 }
