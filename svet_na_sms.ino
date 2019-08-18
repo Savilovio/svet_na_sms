@@ -82,8 +82,11 @@ void setup()  //обязательная процедура setup, запуск�
   t1c=0;
   t1b = 0;
   delay(500);
-  SendMessage("Start. OXP="+String(security)+".Min_t="+String(min_t));
-  //gprs_sendmessage("+79056897223", "Start");
+  if (security)
+    SendMessage("Start. OXP on. Min_t="+String(min_t));
+  else
+    SendMessage("Start. OXP off. Min_t="+String(min_t));
+ 
   
 }
 void loop() //обязательная процедура loop, запускаемая циклично после процедуры setup
