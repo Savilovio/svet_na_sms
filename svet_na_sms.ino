@@ -299,7 +299,6 @@ void gprs_init()
 
 }
 
-
 void gprs_sendmessage(String phonenumber, String s)
 {
  // DebugText("before gprs_send " + phonenumber);
@@ -314,49 +313,79 @@ void gprs_sendmessage(String phonenumber, String s)
   gprs_getMessage(false);
 }
 
+/*
+  Функция приема sms. 
+  Предназначена для считывания sms из очереди.
+  
+  Параметр phonenumber_from_only = true показывает, что вызывается проверка на sms от абонентского номера,
+    а не служебная.
+  Считывание служебных необходимо для корректной работы отправки sms.
+  
+  Возвращает зачения:
+  0 - нет абонентской sms
+  1 - есть sms от абонента. В таком случае глобальные переменные gprs_phonenumber, gprs_command,
+    gprs_param1, gprs_param2 заполняются значениями из sms:
+    gprs_phonenumber - номер телефона с которого отправилось sms
+    gprs_command, gprs_param1, gprs_param2 - текст из sms, разбитый с разделителем пробел, для удобного исопльзования.
+  
+  Примеры использования:
+    gprs_getMessage(false); // считывание служебных смс
+    
+    gprs_getMessage(true); // считывание абонентских sms
+    в случае отправки sms с номера +79112223333 текста sms "Test 1 2"
+    gprs_phonenumber = "+79112223333"
+    gprs_command = "Test"
+    gprs_param1 = "1"
+    gprs_param2 = "2" 
+*/
 int gprs_getMessage(bool phonenumber_from_only)
-{
-  if (gprsSerial.available())
+{  
+  if (gprsSerial.available()) // Если очередь не пустая
   {
     char bufGsm[64]; // buffer array for data recieve over serial port
     String inputGsmStr = ""; //входящая строка с gsm модема
     int countBufGsm = 0;
     //DebugText("available:");
-    while (gprsSerial.available()) // reading data into char array
+    
+    // Размер sms может быть большой, и возможно за один пакет не считается,
+    // поэтому необходимо читать в цикле пока 
+    while (gprsSerial.available()) 
     {
       //DebugText("before read");
       bufGsm[countBufGsm++] = gprsSerial.read(); // writing data into array
-      if (countBufGsm == 64) 
+      if (countBufGsm == 64) // Читаем не более 64 байт
         break;
     }
-    inputGsmStr += bufGsm;
-    //DebugText(String(countBufGsm) + " SMS: " + inputGsmStr);
-    // call clearBufferArray function to clear the storaged data from the array
+    inputGsmStr += bufGsm; // Записываем символы в переменную String. на самом деле эта переменная уже не нужна, вернее нужна только для отладки.
     
+    //DebugText(String(countBufGsm) + " SMS: " + inputGsmStr);
     
     if (phonenumber_from_only) 
     {
       gprs_phonenumber, gprs_command, gprs_param1, gprs_param2 = "";
-      if (inputGsmStr.substring(2, 6) != "+CMT")
+      if (inputGsmStr.substring(2, 6) != "+CMT") // Условие для определния, что sms от абонентского номера
         return 0;
       else
       { 
-        char space = 32;
-        char cmd[64];
-        int countCmd = 0;
+        char space = 32; // символ-разделитель проблел
+        char cmd[64];   // массив с частями sms
+        int countCmd = 0; // счетчик частей sms
+        
         //DebugText("Structire: ");
         gprs_phonenumber = inputGsmStr.substring(9,21);
         //DebugText(gprs_phonenumber);
-        gprs_command = inputGsmStr.substring(50, countBufGsm - 1);
+        
+        gprs_command = inputGsmStr.substring(50, countBufGsm - 1); // пока считываем все, потом будем разбивать
         //DebugText(gprs_command);
         
         int countPoint = 1;
         
         for (int i = 50; i < countBufGsm; i ++)
         {
-          if ((bufGsm[i] == char(32) ) || (bufGsm[i] == '\n'))
+          if ((bufGsm[i] == space) || (bufGsm[i] == '\n')) // условие на разделитель или конец sms
           {
             //DebugText(String(cmd));
+            // Переключатель частей sms. Записываем в глобальные переменные часть sms
             switch (countPoint){
               case 1: { 
                 gprs_command = cmd;
@@ -371,13 +400,14 @@ int gprs_getMessage(bool phonenumber_from_only)
               case 3: { gprs_param2 = cmd; break; }
             }
             countPoint++;
+            // Обнуляем массив частей sms
             for (int x = 0; x < countCmd; x++)
               cmd[x] = NULL;
             countCmd = 0;
           }
           else 
-          {
-            cmd[countCmd++] = bufGsm[i];
+          {            
+            cmd[countCmd++] = bufGsm[i]; // набираем массив части sms
           }
         }
         //DebugText("! " +gprs_phonenumber + gprs_command+gprs_param1+gprs_param2);
@@ -385,6 +415,7 @@ int gprs_getMessage(bool phonenumber_from_only)
           return 1;
       }
     }
+    // Обнуляем массив с буфером sms
     countBufGsm = 0; // set counter of while loop to zero    
     //DebugText("end get_gprs_message-----");
     for (int i = 0; i < countBufGsm; i++)
