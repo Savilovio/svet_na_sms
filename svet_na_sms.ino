@@ -33,13 +33,13 @@ int minute3=0;
 bool p_s1=false; 
 
 //
-String gprs_phonenumber, gprs_command, gprs_param1, gprs_param2 = "";
+String gprs_phonenumber , gprs_command, gprs_param1, gprs_param2 = "";// номер телефона с которого приходят комманды , сами комманды,место для измения переменных
 
 void setup()  //обязательная процедура setup, запускаемая в начале программы; объявление процедур начинается словом void
 
 {
   // Включаем отладку
-  debugflag = true;
+  debugflag = true; //
   gprsMessflag = true;
   p_s1=false;
   pinMode(9, OUTPUT);
@@ -67,7 +67,8 @@ void setup()  //обязательная процедура setup, запуск�
     tel ="+79056897223";
   }
   
-  DebugText(tel);
+  //DebugText(tel);
+  // считываем состояние охраны и минимальную температуру 
   security = EEPROM.read(secpam);
   min_t = EEPROM.read(minpam);
   //if((min_t>10)|| (min_t<2 ))
@@ -83,7 +84,7 @@ void setup()  //обязательная процедура setup, запуск�
   t1b = 0;
   delay(500);
   if (security)
-    SendMessage("Start. OXP on. Min_t="+String(min_t));
+    SendMessage("Start. OXP on. Min_t="+String(min_t));// Приветственное сообщение с состоянием охраны и минимальной температурой
   else
     SendMessage("Start. OXP off. Min_t="+String(min_t));
  
@@ -120,7 +121,7 @@ void could(int t1_sensor_value, int t2_sensor_value, int min_value)
 { 
   if (min_alert)
  {  SendMessage("minute:"+String(minute2));
-    if (minute2 >= 120)
+    if (minute2 >= 120)// если за два часа температура по прежнему ниже минимальной то отправаем повторное сообщение
     {
       SendMessage("warning t1=" + String(t1_sensor_value)+" t2="+String(t2_sensor_value)+" min_t="+String(min_value));
       minute2 = 0;
@@ -137,12 +138,14 @@ void could(int t1_sensor_value, int t2_sensor_value, int min_value)
 
 // Timer one day
 void EventDay ()
-{
-  SendMessage("temp on this day dat1: " +String(temp_dht)+ " dat2: " + String(temp_lm)+"OXP "+String(security));
-  DebugText("OXP"+String(security));
+{ if(security)
+    SendMessage("temp on this day dat1: " +String(temp_dht)+ " dat2: " + String(temp_lm)+"OXP ON"); // ежедневное сообщение с температурой 2-х датчиков
+   else
+     SendMessage("temp on this day dat1: " +String(temp_dht)+ " dat2: " + String(temp_lm)+"OXP OFF");// и состоянием охраны
+ // DebugText("OXP"+String(security));
 }
 
-// Timer 10 second
+// каждые 10 секунд считывается значения с датчиков
 void Event10sec()
 {
   ReadSensorsTemp();
@@ -154,28 +157,31 @@ void Event10sec()
     DebugText(gprs_command);
     DebugText(gprs_param1);
     DebugText(gprs_param2);
-    if (gprs_param1.startsWith("New min_t"))
-    {
-        EEPROM.write(minpam, min_t);
+    if (gprs_command.startsWith("New_min_t"))// устанавлиет новую минимальную температуру
+    {   
+        int g = gprs_param1.toInt();
+        //DebugText(g);
+        EEPROM.write(minpam,g);
+        min_t=EEPROM.read(minpam);
         SendMessage("New min_t"+ String(min_t));
     }
-    if (gprs_phonenumber.startsWith("Phone"))
+    if (gprs_command.startsWith("Phone"))// меняет номер телефона на тот с которого отправлена команда
     {
-      EEPROM.write(addr, phone);
-      SendMessage("New phone number"+ String(phone));
+      EEPROM.write(addr,phone);
+      tel==phone;
+      SendMessage("New phone number"+ String(tel));
     }
-    if (gprs_command.startsWith("Temp"))
+    if (gprs_command.startsWith("Temp"))// запрашивает температуру 
     {
-      //DebugText("start eventday");
       EventDay();
     }
-    if (gprs_command.startsWith("On"))
+    if (gprs_command.startsWith("On"))// включает охрану
     {
       security = true;
       SendMessage("OXP on");
       EEPROM.write(secpam,security);
     } 
-    if (gprs_command.startsWith("Off"))
+    if (gprs_command.startsWith("Off"))// выключает охрану
     {
       security = false;
       SendMessage("OXP off");
@@ -192,7 +198,7 @@ void Event10sec()
 
 void ReadSensorsTemp()
 {
-    
+    // считывание температуру с датчиков
 
     humid_dht = dht.readHumidity();
     temp_dht = dht.readTemperature();
@@ -207,20 +213,18 @@ void ReadSensorsTemp()
       if (min_alert)
       {
         min_alert = false;
-        SendMessage("Temp in normal. Temp=" +String(temp_dht));
+        SendMessage("Temp in normal. Temp=" +String(temp_dht)); // если температура была ниже минимальной и стала выше минимальной , то приходит на сообщение
       }
 }
 
 void ReadSensorKeep()
 {
-
+    // считывает значения с датчиков охраны
     s1=digitalRead(sen_1);
     s2=digitalRead(sen_2);
-    DebugText("digitalRead 1 " +String(s1));;
-    //SendMessage(String(s1));
     if ((s1==1) && (security))
       {
-       AlertSecurity(s1, s2);
+       AlertSecurity(s1, s2); // если один из датчиков сработал 
        p_s1=true;
        //DebugText(String(s1));
        //if (p_s1)
@@ -238,12 +242,12 @@ void ReadSensorKeep()
       if (((p_s1)&&(s1==0))&&(security))
       {   
         p_s1=false;
-        SendMessage("Everything in normal. Sen_1= " +String(s1));
+        SendMessage("Everything in normal. Sen_1= " +String(s1)); // если один из датчиков сработал и потом перестал срабатывать
       }
     }
 }
 
-void AlertSecurity( int s1,int s2)
+void AlertSecurity( int s1,int s2)// реакция на срабатывание датчика
 { if (security)
   {  
     if(minute3 >=3)
@@ -262,7 +266,7 @@ void AlertSecurity( int s1,int s2)
 
 void SendMessage(String s)
 { 
-  if (debugflag)
+  if (debugflag) // сообщения отладки
     Serial.println(s);
   
   if (gprsMessflag)
@@ -328,8 +332,6 @@ int gprs_getMessage(bool phonenumber_from_only)
     inputGsmStr += bufGsm;
     //DebugText(String(countBufGsm) + " SMS: " + inputGsmStr);
     // call clearBufferArray function to clear the storaged data from the array
-    for (int i = 0; i < countBufGsm; i++)
-      bufGsm[i] = NULL;
     
     
     if (phonenumber_from_only) 
@@ -356,8 +358,16 @@ int gprs_getMessage(bool phonenumber_from_only)
           {
             //DebugText(String(cmd));
             switch (countPoint){
-              case 1: { gprs_command = cmd; break; }
-              case 2: { gprs_param1 = cmd; break; }
+              case 1: { 
+                gprs_command = cmd;
+                //DebugText(cmd); 
+                break; 
+                }
+              case 2: { 
+                gprs_param1 = cmd; 
+                //DebugText(cmd);
+                break; 
+                }
               case 3: { gprs_param2 = cmd; break; }
             }
             countPoint++;
@@ -377,6 +387,8 @@ int gprs_getMessage(bool phonenumber_from_only)
     }
     countBufGsm = 0; // set counter of while loop to zero    
     //DebugText("end get_gprs_message-----");
+    for (int i = 0; i < countBufGsm; i++)
+      bufGsm[i] = NULL;
     
   }  
   
