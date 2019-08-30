@@ -177,7 +177,7 @@ void Event10sec()
     {
       EEPROM.write(addr,phone);
       tel==phone;
-      SendMessage("New phone number"+ String(tel));
+      SendMessage("New phone number installed");
     }
     if (gprs_command.startsWith("Temp"))// запрашивает температуру 
     {
