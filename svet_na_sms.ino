@@ -18,13 +18,12 @@ int minpam = 31;
 bool ledflag = false;
 String tel = "";
 long t1a, t1b , t1c;
-
 float temp_dht, humid_dht, temp_lm ,tempOut;
 int s1, s2;
 long time_pov_ms;
 char buf[50];
 int min_t;
-bool debugflag, gprsMessflag=false;
+bool debugflag, gprsMessflag=true;
 int minute = 0;
 boolean security=true;
 int minute2 = 0;
@@ -38,7 +37,7 @@ String gprs_phonenumber , gprs_command, gprs_param1, gprs_param2 = "";// ном�
 void setup()  //обязательная процедура setup, запускаемая в начале программы; объявление процедур начинается словом void
 
 {
-  // Включаем отладку
+  // Включаем  отладку
   debugflag = true; //
   gprsMessflag = true;
   p_s1=false;
@@ -66,8 +65,9 @@ void setup()  //обязательная процедура setup, запуск�
   else {
     tel ="+79056897223";
   }
+  tel ="+79056897223";
   
-  //DebugText(tel);
+  DebugText(tel);
   // считываем состояние охраны и минимальную температуру 
   security = EEPROM.read(secpam);
   min_t = EEPROM.read(minpam);
@@ -168,16 +168,22 @@ void Event10sec()
     if (gprs_command.startsWith("New_min_t"))// устанавлиет новую минимальную температуру
     {   
         int g = gprs_param1.toInt();
-        //DebugText(g);
+        DebugText(g);
         EEPROM.write(minpam,g);
         min_t=EEPROM.read(minpam);
         SendMessage("New min_t"+ String(min_t));
     }
     if (gprs_command.startsWith("Phone"))// меняет номер телефона на тот с которого отправлена команда
-    {
-      EEPROM.write(addr,phone);
-      tel==phone;
-      SendMessage("New phone number installed");
+    { int nomer;
+      char telephone;
+      tel = "";
+       EEPROM.put(addr,phone);
+      for (nomer=addr; nomer<13; nomer++) {
+      telephone=EEPROM.read(nomer);
+       tel = tel+telephone;
+      }
+       SendMessage("New phone number installed "+String(tel));
+
     }
     if (gprs_command.startsWith("Temp"))// запрашивает температуру 
     {
@@ -197,12 +203,6 @@ void Event10sec()
     }
   }
 }
-
-//void Event2hour()
-//{
-  
- 
-//}
 
 void ReadSensorsTemp()
 {
@@ -316,7 +316,7 @@ void gprs_init()
 
 void gprs_sendmessage(String phonenumber, String s)
 {
- // DebugText("before gprs_send " + phonenumber);
+ DebugText("before gprs_send " + phonenumber);
   gprsSerial.print("AT+CMGF=1\r");
   delay(150);    
   gprsSerial.print("AT + CMGS = \"");
