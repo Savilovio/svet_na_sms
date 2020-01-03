@@ -12,9 +12,12 @@ int sen_1 = 11;
 int sen_2 = 12;
 int led = 8;  //объявление переменной целого типа, содержащей номер порта к которому мы подключили второй провод
 char phone[13]; // переменная для хранения массива из 20 символов для номера телефона
-int addr = 0;
-int secpam = 32;
-int minpam = 31;
+
+// АДРЕСА ЯЧЕЕК ПАМЯТИ ДЛЯ ХРАНЕНИЯ
+int PAM_PHONE = 0;
+int PAM_MIN_T = 31;
+int PAM_SEC = 32;
+
 bool ledflag = false;
 String tel = "";
 long t1a, t1b , t1c;
@@ -25,11 +28,16 @@ char buf[50];
 int min_t;
 bool debugflag, gprsMessflag=true;
 int minute = 0;
-boolean security=true;
+
+// ОХРАНА
+boolean security=true;            // Переменная  охрана вкл/выкл
+boolean security_alert = false;   // Переменная срабатывания охраны
+int security_minute = 0;          // Счетчик минут для охраны
+
 int minute2 = 0;
 boolean min_alert=false;
-int minute3=0;
-bool p_s1=false; 
+//bool p_s1=false; 
+int point=1;
 
 //
 String gprs_phonenumber , gprs_command, gprs_param1, gprs_param2 = "";// номер телефона с которого приходят комманды , сами комманды,место для измения переменных
@@ -40,7 +48,7 @@ void setup()  //обязательная процедура setup, запуск�
   // Включаем  отладку
   debugflag = true; //
   gprsMessflag = true;
-  p_s1=false;
+  //p_s1=false;
   pinMode(9, OUTPUT);
   digitalWrite(9, HIGH);    // Подаем High на пин 9
   delay(3000);              // на 3 секунды
@@ -55,7 +63,7 @@ void setup()  //обязательная процедура setup, запуск�
   
   pinMode(led, OUTPUT); //объявление используемого порта, led - номер порта, второй аргумент - тип использования порта - на вход (INPUT) или на выход (OUTPUT)
   
-  EEPROM.get(addr, phone); // считываем массив символов по адресу addr
+  EEPROM.get(PAM_PHONE, phone); // считываем массив символов по адресу PAM_PHONE
   delay(150); 
   if (phone[1]+phone[2]+phone[3]+phone[4]+phone[5] >12){
     String telephon(phone);
@@ -63,14 +71,14 @@ void setup()  //обязательная процедура setup, запуск�
     tel=telephon;
   }
   else {
-    tel ="+79056897223";
+    tel ="+79050457909";
   }
-  tel ="+79056897223";
+  //tel ="+79050457909";
   
   DebugText(tel);
   // считываем состояние охраны и минимальную температуру 
-  security = EEPROM.read(secpam);
-  min_t = EEPROM.read(minpam);
+  security = EEPROM.read(PAM_SEC);
+  min_t = EEPROM.read(PAM_MIN_T);
   //if((min_t>10)|| (min_t<2 ))
   //{
   //  EEPROM.write(31, 8);//min t
@@ -101,7 +109,8 @@ void loop() //обязательная процедура loop, запускае
   // Minute timer
   if  (t1a-t1c > 59900)
   { 
-    minute3++;
+    
+    security_minute++;
     minute2++;   
     minute++;
     t1c=t1a; 
@@ -116,25 +125,7 @@ void loop() //обязательная процедура loop, запускае
   delay(1000);
 
 }
-// реакция на слишком низкую температуру 
-void could(int t1_sensor_value, int t2_sensor_value, int min_value)
-{ 
-  if (min_alert)
- {  SendMessage("minute:"+String(minute2));
-    if (minute2 >= 120)// если за два часа температура по прежнему ниже минимальной то отправаем повторное сообщение
-    {
-      SendMessage("warning t1=" + String(t1_sensor_value)+" t2="+String(t2_sensor_value)+" min_t="+String(min_value));
-      minute2 = 0;
-  } 
- }
-  else 
-  { 
-    min_alert = true; // если температура слишком низкая то отправляем сообщение
-    minute2 = 0;
-    SendMessage("warning t1=" + String(t1_sensor_value)+" t2="+String(t2_sensor_value)+" min_t="+String(min_value));
-  }
-  
-}
+
 
 // Timer one day
 void EventDay ()
@@ -168,17 +159,22 @@ void Event10sec()
     if (gprs_command.startsWith("New_min_t"))// устанавлиет новую минимальную температуру
     {   
         int g = gprs_param1.toInt();
-        DebugText(g);
-        EEPROM.write(minpam,g);
-        min_t=EEPROM.read(minpam);
-        SendMessage("New min_t"+ String(min_t));
+        //DebugText(g);
+        EEPROM.write(PAM_MIN_T,g);
+        min_t=EEPROM.read(PAM_MIN_T);
+        SendMessage("New min_t "+ String(min_t));
     }
+    //if (gprs_command.startsWith("Reset"))// Перезагрузка
+    //{
+      //softReset();
+      //DebugText("reset on");
+    //}
     if (gprs_command.startsWith("Phone"))// меняет номер телефона на тот с которого отправлена команда
     { int nomer;
       char telephone;
       tel = "";
-       EEPROM.put(addr,phone);
-      for (nomer=addr; nomer<13; nomer++) {
+       EEPROM.put(PAM_PHONE,phone);
+      for (nomer=PAM_PHONE; nomer<13; nomer++) {
       telephone=EEPROM.read(nomer);
        tel = tel+telephone;
       }
@@ -193,13 +189,14 @@ void Event10sec()
     {
       security = true;
       SendMessage("OXP on");
-      EEPROM.write(secpam,security);
+      EEPROM.write(PAM_SEC,security);
     } 
     if (gprs_command.startsWith("Off"))// выключает охрану
     {
       security = false;
+      security_alert = false;
       SendMessage("OXP off");
-      EEPROM.write(secpam,security);
+      EEPROM.write(PAM_SEC, security);
     }
   }
 }
@@ -224,53 +221,64 @@ void ReadSensorsTemp()
         SendMessage("Temp in normal. Temp=" +String(temp_dht)); // если температура была ниже минимальной и стала выше минимальной , то приходит на сообщение
       }
 }
+// реакция на слишком низкую температуру 
+void could(int t1_sensor_value, int t2_sensor_value, int min_value)
+{ 
+  if (min_alert)
+  { 
+    SendMessage("minute:"+String(minute2));
+    if (minute2 >= 120)// если за два часа температура по прежнему ниже минимальной то отправаем повторное сообщение
+    {
+      SendMessage("warning t1=" + String(t1_sensor_value)+" t2="+String(t2_sensor_value)+" min_t="+String(min_value));
+      minute2 = 0;
+    } 
+  }
+  else 
+  { 
+    min_alert = true; // если температура слишком низкая то отправляем сообщение
+    minute2 = 0;
+    SendMessage("warning t1=" + String(t1_sensor_value)+" t2="+String(t2_sensor_value)+" min_t="+String(min_value));
+  }
+  
+}
 
+// функция считывания значений с датчиков 
 void ReadSensorKeep()
 {
+  if (security)// если охрана включена
+  {
     // считывает значения с датчиков охраны
     s1=digitalRead(sen_1);
     s2=digitalRead(sen_2);
-    if ((s1==1) && (security))
-      {
-       AlertSecurity(s1, s2); // если один из датчиков сработал 
-       p_s1=true;
-       //DebugText(String(s1));
-       //if (p_s1)
-        // DebugText("p_s1=true");
-         
-      // else
-        //DebugText("p_s1=false");
-      }
-    else      
-    {
-      //if (p_s1)
-        //DebugText("p_s1=true1");
-      //else
-        //DebugText("p_s1=fals1");
-      if (((p_s1)&&(s1==0))&&(security))
-      {   
-        p_s1=false;
-        SendMessage("Everything in normal. Sen_1= " +String(s1)); // если один из датчиков сработал и потом перестал срабатывать
-      }
-    }
+    if (s1 == 1)// если один из датчиков сработал 
+      AlertSecurity(s1, s2); 
+    else 
+      if(security_alert)
+        security_alert=false;
+   }
 }
 
-void AlertSecurity( int s1,int s2)// реакция на срабатывание датчика
-{ if (security)
-  {  
-    if(minute3 >=3)
-    {  
-      SendMessage("Danger, thieves! sen1=" + String(s1));
-      minute3=0;
+void AlertSecurity( int s1,int s2) // реакция на срабатывание датчика
+{
+    if (!security_alert)// если сработал первый раз
+    {
+      security_alert = true;
+      security_minute=0;
+      SendMessage("Danger,thieves!");
+    }
+    else
+    {
+      if(security_minute == 3)// отправка повторного сообщения через 3 минуты , если сработал снова
+      {
+        SendMessage("Danger,thieves!/again");
+        security_minute=0;
+      }
     }
   }
-  else
-    {  
-    minute3=0;
-    SendMessage("Danger, thieves! sen1=" + String(s1));
-    }
-}
-
+//void softReset() 
+//{
+  //asm volatile ("jmp 0");
+//} 
 /*Функция отправки смс
  * функция предназанчена для отправки комманд в виде смс на плату
  * переменнная debugflag включет и выключает сообщения отладки т.е
