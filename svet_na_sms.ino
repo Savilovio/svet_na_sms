@@ -79,10 +79,10 @@ void setup()  //обязательная процедура setup, запуск�
   // считываем состояние охраны и минимальную температуру 
   security = EEPROM.read(PAM_SEC);
   min_t = EEPROM.read(PAM_MIN_T);
-  //if((min_t>10)|| (min_t<2 ))
-  //{
-  //  EEPROM.write(31, 8);//min t
-  //}
+  if((min_t>10)|| (min_t<2 ))
+  {
+    EEPROM.write(PAM_MIN_T, 8);//min t
+  }
 
   
   gprs_init();
@@ -164,11 +164,6 @@ void Event10sec()
         min_t=EEPROM.read(PAM_MIN_T);
         SendMessage("New min_t "+ String(min_t));
     }
-    //if (gprs_command.startsWith("Reset"))// Перезагрузка
-    //{
-      //softReset();
-      //DebugText("reset on");
-    //}
     if (gprs_command.startsWith("Phone"))// меняет номер телефона на тот с которого отправлена команда
     { int nomer;
       char telephone;
@@ -226,7 +221,7 @@ void could(int t1_sensor_value, int t2_sensor_value, int min_value)
 { 
   if (min_alert)
   { 
-    SendMessage("minute:"+String(minute2));
+    //SendMessage("minute:"+String(minute2));
     if (minute2 >= 120)// если за два часа температура по прежнему ниже минимальной то отправаем повторное сообщение
     {
       SendMessage("warning t1=" + String(t1_sensor_value)+" t2="+String(t2_sensor_value)+" min_t="+String(min_value));
@@ -275,10 +270,7 @@ void AlertSecurity( int s1,int s2) // реакция на срабатывани
       }
     }
   }
-//void softReset() 
-//{
-  //asm volatile ("jmp 0");
-//} 
+
 /*Функция отправки смс
  * функция предназанчена для отправки комманд в виде смс на плату
  * переменнная debugflag включет и выключает сообщения отладки т.е
