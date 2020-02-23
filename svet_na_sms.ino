@@ -1,4 +1,4 @@
-//<<<<<<< HEAD
+
 #include <SoftwareSerial.h>
 #include <EEPROM.h>//
 #include "DHT.h"
@@ -47,7 +47,7 @@ void setup()  //обязательная процедура setup, запуск�
 
 {
   // Включаем  отладку
-  debugflag = true; //
+  debugflag = false; //
   gprsMessflag = true;
   //p_s1=false;
   pinMode(9, OUTPUT);
@@ -63,20 +63,11 @@ void setup()  //обязательная процедура setup, запуск�
  
   
   pinMode(led, OUTPUT); //объявление используемого порта, led - номер порта, второй аргумент - тип использования порта - на вход (INPUT) или на выход (OUTPUT)
+
+  // Read phone number
+  phone_read();  
   
-  EEPROM.get(PAM_PHONE, phone); // считываем массив символов по адресу PAM_PHONE
-  delay(150); 
-  if (phone[1]+phone[2]+phone[3]+phone[4]+phone[5] >12){
-    String telephon(phone);
-    DebugText ("new tel set   ");  
-    tel=telephon;
-  }
-  else {
-    tel ="+79056897223";
-  }
-  //tel ="+79050457909";
-  
-  DebugText(tel);
+//  DebugText(tel);
   // считываем состояние охраны и минимальную температуру 
   security = EEPROM.read(PAM_SEC);
   min_t = EEPROM.read(PAM_MIN_T);
@@ -85,20 +76,23 @@ void setup()  //обязательная процедура setup, запуск�
     EEPROM.write(PAM_MIN_T, 8);//min t
   }
 
-  
   gprs_init();
- 
   
   t1c=0;
   t1b = 0;
   delay(500);
+
+  temp_dht = dht.readTemperature();// считываем температуру1
+  tempOut = analogRead(tempPin);
+  temp_lm = tempOut * 0.48828125;// преобразуем температуру2
+
+  // Приветственное сообщение с состоянием охраны и минимальной температурой
   if (security)//если охрана включена то приходит Приветсвенное сообщение + охрана включена
-    SendMessage("Start. OXP on. Min_t="+String(min_t));// Приветственное сообщение с состоянием охраны и минимальной температурой
+    SendMessage("Start. OXP on. Min_t="+String(min_t) + " t1 " + String(temp_dht) + " t2 " + String(temp_lm) );
   else
-    SendMessage("Start. OXP off. Min_t="+String(min_t));
- 
-  
+    SendMessage("Start. OXP off. Min_t="+String(min_t) + " t1 " + String(temp_dht) + " t2 " + String(temp_lm));
 }
+
 void loop() //обязательная процедура loop, запускаемая циклично после процедуры setup
 { // Таймер 10 секунд
   t1a = millis();
@@ -124,7 +118,7 @@ void loop() //обязательная процедура loop, запускае
   }
   
   delay(1000);
-
+  //DebugText("Loop");
 }
 
 
@@ -167,8 +161,11 @@ void Event10sec()
     }
     if (gprs_command.startsWith("Phone"))// меняет номер телефона на тот с которого отправлена команда
     { 
-        EEPROM.write(PAM_PHONE,phone);
-        tel=EEPROM.read(PAM_PHONE);
+        DebugText("PUT " + gprs_phonenumber);
+        gprs_phonenumber.toCharArray(phone, 13);
+        EEPROM.put(PAM_PHONE, phone);
+        delay(150); 
+        phone_read();
         SendMessage("New phone number installed "+String(tel));
     }
     if (gprs_command.startsWith("Temp"))// запрашивает температуру 
@@ -355,7 +352,7 @@ int gprs_getMessage(bool phonenumber_from_only)
     char bufGsm[64]; // buffer array for data recieve over serial port
     String inputGsmStr = ""; //входящая строка с gsm модема
     int countBufGsm = 0;
-    //DebugText("available:");
+    DebugText("available:");
     
     // Размер sms может быть большой, и возможно за один пакет не считается,
     // поэтому необходимо читать в цикле пока 
@@ -435,4 +432,28 @@ int gprs_getMessage(bool phonenumber_from_only)
   
   return 0;
 }
+void phone_read()
+{
+  EEPROM.get(PAM_PHONE, phone); // считываем массив символов по адресу PAM_PHONE
+  delay(150); 
+  if (phone[1]+phone[2]+phone[3]+phone[4]+phone[5] >12){
+    String telephon(phone);
+    DebugText ("get phone " + telephon);      
+    if (telephon.length() != 12)
+    {
+       DebugText("Error length number. Change ");
+       tel ="+79056897223";
+       tel.toCharArray(phone, 13);
+       EEPROM.put(PAM_PHONE, phone); 
+       DebugText ("get phone " + tel);
+    }
+    else 
+       tel=telephon;
+  }
+  else {
+    tel ="+79056897223";
+  }
+}
+
+
 //конец
